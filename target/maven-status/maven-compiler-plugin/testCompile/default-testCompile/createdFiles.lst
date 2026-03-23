@@ -1,9 +1,0 @@
-com\goldtrading\backend\integration\IntegrationTestConfig$ControlledTestBotRuntimeAdapter$Mode.class
-com\goldtrading\backend\integration\SecurityAndAuthIT.class
-com\goldtrading\backend\integration\AdminContractsIT.class
-com\goldtrading\backend\integration\ResetPasswordFlowIT.class
-com\goldtrading\backend\integration\BaseIntegrationTest.class
-com\goldtrading\backend\integration\ApplicationSmokeIT.class
-com\goldtrading\backend\integration\IntegrationTestConfig.class
-com\goldtrading\backend\integration\IntegrationTestConfig$ControlledTestBotRuntimeAdapter.class
-com\goldtrading\backend\integration\AuthenticatedBusinessFlowsIT.class
