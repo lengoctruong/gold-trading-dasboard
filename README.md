@@ -36,3 +36,12 @@ Spring Boot backend for Trading Bot Management Platform.
 - Lifecycle updates are transactional in `Mt5AccountService`.
 
 
+
+## Security configuration (JWT)
+- Never commit `.env` or any real secrets.
+- Provide JWT config only via environment variables:
+  - `APP_JWT_SECRET_BASE64` (required in non-local, base64-encoded key, minimum 32 bytes)
+  - `APP_JWT_ACCESS_TOKEN_MINUTES` (optional, default `15`)
+  - `APP_JWT_REFRESH_TOKEN_DAYS` (optional, default `30`)
+- Provide `APP_MT5_ENCRYPTION_KEY` via environment variable.
+- In non-local environments, application startup fails if `APP_JWT_SECRET_BASE64` is missing/invalid/weak.

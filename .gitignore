@@ -1,2 +1,5 @@
 logs/*.log
 target/
+.env
+.env.*
+!.env.example

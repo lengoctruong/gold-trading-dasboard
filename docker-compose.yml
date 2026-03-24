@@ -21,7 +21,7 @@ services:
     build: .
     container_name: gtb-backend
     env_file:
-      - .env.example
+      - .env
     depends_on:
       - postgres
       - redis
@@ -30,3 +30,4 @@ services:
 
 volumes:
   postgres_data:
+

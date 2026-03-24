@@ -33,7 +33,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
+import java.security.SecureRandom;
 import java.time.OffsetDateTime;
+import java.util.Base64;
 import java.util.UUID;
 
 @SpringBootTest
@@ -42,6 +44,8 @@ import java.util.UUID;
 @ActiveProfiles("test")
 @Import(IntegrationTestConfig.class)
 public abstract class BaseIntegrationTest {
+    private static final String TEST_JWT_SECRET_BASE64 = generateBase64Key(32);
+    private static final String TEST_MT5_ENCRYPTION_KEY = generateAsciiKey(32);
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16")
@@ -55,8 +59,20 @@ public abstract class BaseIntegrationTest {
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.flyway.enabled", () -> "true");
-        registry.add("app.jwt.secret", () -> "Q2hhbmdlVGhpc1NlY3JldEtleUZvclByb2R1Y3Rpb24xMjM0NTY3ODkwQQ==");
-        registry.add("app.mt5.encryption-key", () -> "change-this-key-16");
+        registry.add("app.jwt.secret", () -> TEST_JWT_SECRET_BASE64);
+        registry.add("app.mt5.encryption-key", () -> TEST_MT5_ENCRYPTION_KEY);
+    }
+
+    private static String generateBase64Key(int sizeBytes) {
+        byte[] key = new byte[sizeBytes];
+        new SecureRandom().nextBytes(key);
+        return Base64.getEncoder().encodeToString(key);
+    }
+
+    private static String generateAsciiKey(int sizeBytes) {
+        byte[] key = new byte[sizeBytes];
+        new SecureRandom().nextBytes(key);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(key).substring(0, sizeBytes);
     }
 
     @Autowired protected ObjectMapper objectMapper;
