@@ -16,5 +16,3 @@ logs/
 Thumbs.db
 
 *.class
-
-.env
