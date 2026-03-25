@@ -7,12 +7,11 @@ Spring Boot backend for Trading Bot Management Platform.
 - Spring Web/Security/JPA/Validation
 - JWT access + refresh token (hashed)
 - PostgreSQL + Flyway
-- Redis (coordination-ready)
 - OpenAPI Swagger (`/swagger-ui/index.html`)
 
 ## Run locally
 1. Ensure Java 21 is installed.
-2. `docker compose up -d postgres redis`
+2. `docker compose up -d postgres`
 3. Copy `.env.example` to `.env` and adjust values for local:
    - `APP_PORT=8088`
    - `CORS_ALLOWED_ORIGINS=http://localhost:5173`

@@ -11,12 +11,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  redis:
-    image: redis:7
-    container_name: gtb-redis
-    ports:
-      - "6379:6379"
-
   app:
     build: .
     container_name: gtb-backend
@@ -24,7 +18,6 @@ services:
       - .env
     depends_on:
       - postgres
-      - redis
     ports:
       - "8080:8080"
 
