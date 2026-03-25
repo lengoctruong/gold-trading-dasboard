@@ -24,13 +24,13 @@ server:
 
 app:
   jwt:
-    secret: ${APP_JWT_SECRET_BASE64:}
+    secret: ${APP_JWT_SECRET_BASE64:Q2hhbmdlVGhpc1NlY3JldEtleUZvclByb2R1Y3Rpb24xMjM0NTY3ODkwQQ}
     access-token-minutes: ${APP_JWT_ACCESS_TOKEN_MINUTES:15}
     refresh-token-days: ${APP_JWT_REFRESH_TOKEN_DAYS:30}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://172.188.217.183:5173}
   mt5:
-    encryption-key: ${APP_MT5_ENCRYPTION_KEY:}
+    encryption-key: ${APP_MT5_ENCRYPTION_KEY:change-this-key-16}
 
 management:
   endpoints:
