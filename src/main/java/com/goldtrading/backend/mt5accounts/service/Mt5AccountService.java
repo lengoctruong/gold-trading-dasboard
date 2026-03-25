@@ -280,6 +280,9 @@ public class Mt5AccountService {
         var pageData = accountRepository.findAll(spec, pageable);
         List<MT5Account> rows = pageData.getContent();
         Map<UUID, User> users = loadUsers(rows);
+        Map<UUID, com.goldtrading.backend.strategies.domain.entity.Strategy> strategies = loadStrategies(rows);
+        Map<UUID, com.goldtrading.backend.riskrules.domain.entity.RiskRule> riskRules = loadRiskRules(rows);
+        Map<UUID, PortMaster> ports = loadPorts(rows);
 
         if (searchToken != null) {
             Set<UUID> matchedUserIds = new HashSet<>();
@@ -296,17 +299,30 @@ public class Mt5AccountService {
                     .toList();
         }
 
-        List<Mt5AccountResponse> items = rows.stream().map(this::toResponse).toList();
+        List<Mt5AccountResponse> items = rows.stream()
+                .map(a -> toResponse(a, users.get(a.getUserId()), strategies.get(a.getStrategyId()), riskRules.get(a.getRiskRuleId()), ports.get(a.getAssignedPortId())))
+                .toList();
         return new PagedDataResponse<>(items, pageData.getNumber(), pageData.getSize(), pageData.getTotalElements(), pageData.getTotalPages());
     }
 
     public List<Mt5AccountResponse> adminList() {
-        return accountRepository.findByDeletedAtIsNull(PageRequest.of(0, 500)).map(this::toResponse).getContent();
+        var rows = accountRepository.findByDeletedAtIsNull(PageRequest.of(0, 500)).getContent();
+        Map<UUID, User> users = loadUsers(rows);
+        Map<UUID, com.goldtrading.backend.strategies.domain.entity.Strategy> strategies = loadStrategies(rows);
+        Map<UUID, com.goldtrading.backend.riskrules.domain.entity.RiskRule> riskRules = loadRiskRules(rows);
+        Map<UUID, PortMaster> ports = loadPorts(rows);
+        return rows.stream()
+                .map(a -> toResponse(a, users.get(a.getUserId()), strategies.get(a.getStrategyId()), riskRules.get(a.getRiskRuleId()), ports.get(a.getAssignedPortId())))
+                .toList();
     }
 
     public Mt5AccountResponse adminGet(UUID id) {
         MT5Account account = accountRepository.findById(id).orElseThrow(() -> new BusinessException("NOT_FOUND", "Account not found"));
-        return toResponse(account);
+        User user = userRepository.findById(account.getUserId()).orElse(null);
+        var strategy = account.getStrategyId() == null ? null : strategyRepository.findById(account.getStrategyId()).orElse(null);
+        var riskRule = account.getRiskRuleId() == null ? null : riskRuleRepository.findById(account.getRiskRuleId()).orElse(null);
+        var port = account.getAssignedPortId() == null ? null : portMasterRepository.findById(account.getAssignedPortId()).orElse(null);
+        return toResponse(account, user, strategy, riskRule, port);
     }
 
     @Transactional
@@ -424,7 +440,22 @@ public class Mt5AccountService {
     private Mt5AccountResponse toResponse(MT5Account a) {
         return new Mt5AccountResponse(a.getId(), a.getUserId(), a.getAccountNumber(), a.getBroker(), a.getServer(), a.getAccountType(),
                 a.getVerificationStatus(), a.getVerificationMessage(), a.getStrategyId(), a.getTimeframe(), a.getRiskRuleId(), a.getStatus(),
-                a.getAdminAction(), a.getAssignedPortId(), a.getSubmittedAt(), a.getStartedAt(), a.getStoppedAt(), a.getUpdatedAt());
+                a.getAdminAction(), a.getAssignedPortId(), a.getSubmittedAt(), a.getStartedAt(), a.getStoppedAt(), a.getUpdatedAt(),
+                null, null, null, null, null);
+    }
+
+    private Mt5AccountResponse toResponse(MT5Account a, User user,
+                                          com.goldtrading.backend.strategies.domain.entity.Strategy strategy,
+                                          com.goldtrading.backend.riskrules.domain.entity.RiskRule riskRule,
+                                          PortMaster port) {
+        return new Mt5AccountResponse(a.getId(), a.getUserId(), a.getAccountNumber(), a.getBroker(), a.getServer(), a.getAccountType(),
+                a.getVerificationStatus(), a.getVerificationMessage(), a.getStrategyId(), a.getTimeframe(), a.getRiskRuleId(), a.getStatus(),
+                a.getAdminAction(), a.getAssignedPortId(), a.getSubmittedAt(), a.getStartedAt(), a.getStoppedAt(), a.getUpdatedAt(),
+                user == null ? null : user.getFullName(),
+                user == null ? null : user.getEmail(),
+                strategy == null ? null : strategy.getCode(),
+                riskRule == null ? null : riskRule.getCode(),
+                port == null ? null : port.getCode());
     }
 
     private Sort resolveSort(String sortBy, String sortOrder) {
@@ -450,6 +481,27 @@ public class Mt5AccountService {
         if (userIds.isEmpty()) return Map.of();
         return userRepository.findByIdIn(userIds).stream()
                 .collect(Collectors.toMap(User::getId, Function.identity(), (left, right) -> left, HashMap::new));
+    }
+
+    private Map<UUID, com.goldtrading.backend.strategies.domain.entity.Strategy> loadStrategies(List<MT5Account> accounts) {
+        var ids = accounts.stream().map(MT5Account::getStrategyId).filter(java.util.Objects::nonNull).collect(Collectors.toSet());
+        if (ids.isEmpty()) return Map.of();
+        return strategyRepository.findByIdIn(ids).stream()
+                .collect(Collectors.toMap(com.goldtrading.backend.strategies.domain.entity.Strategy::getId, Function.identity(), (left, right) -> left, HashMap::new));
+    }
+
+    private Map<UUID, com.goldtrading.backend.riskrules.domain.entity.RiskRule> loadRiskRules(List<MT5Account> accounts) {
+        var ids = accounts.stream().map(MT5Account::getRiskRuleId).filter(java.util.Objects::nonNull).collect(Collectors.toSet());
+        if (ids.isEmpty()) return Map.of();
+        return riskRuleRepository.findByIdIn(ids).stream()
+                .collect(Collectors.toMap(com.goldtrading.backend.riskrules.domain.entity.RiskRule::getId, Function.identity(), (left, right) -> left, HashMap::new));
+    }
+
+    private Map<UUID, PortMaster> loadPorts(List<MT5Account> accounts) {
+        var ids = accounts.stream().map(MT5Account::getAssignedPortId).filter(java.util.Objects::nonNull).collect(Collectors.toSet());
+        if (ids.isEmpty()) return Map.of();
+        return portMasterRepository.findByIdIn(ids).stream()
+                .collect(Collectors.toMap(PortMaster::getId, Function.identity(), (left, right) -> left, HashMap::new));
     }
 
 }

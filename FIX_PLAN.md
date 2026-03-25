@@ -34,3 +34,64 @@
 ## Remaining optional improvements
 - Add DB indexes for heavily queried MT5 filters/search columns for large datasets.
 - Add explicit OpenAPI parameter docs/examples for admin MT5 list filters.
+
+## Added in current pass (admin module phases)
+- Step 1 (targeted bugfix pass):
+  - Fixed admin user status persistence:
+    - `POST /api/v1/admin/users/{id}/suspend` now saves status to DB
+    - `POST /api/v1/admin/users/{id}/activate` now saves status to DB
+  - Confirmed admin user response contract includes `preferredLanguage`.
+  - Updated FE account detail logs mapping (in FE repo) to use structured params:
+    - logs: `entityType=MT5_ACCOUNT`, `entityId={id}`
+    - process logs: `mt5AccountId={id}`
+
+- Phase 1:
+  - Added structured optional filters to:
+    - `GET /api/v1/admin/logs`: `entityType`, `entityId`, `actorType`, `result`
+    - `GET /api/v1/admin/process-logs`: `mt5AccountId`, `portId`, `actionType`, `result`
+  - Preserved backward compatibility for `page`, `pageSize`, `search`.
+
+- Phase 2:
+  - Enriched `Mt5AccountResponse` with optional admin display fields:
+    - `userFullName`, `userEmail`, `strategyCode`, `riskRuleCode`, `assignedPortCode`
+  - Implemented batched enrichment in `Mt5AccountService` to avoid N+1 patterns.
+
+- Phase 3:
+  - `GET /api/v1/admin/strategies` supports server-side:
+    - `page`, `pageSize`, `sortBy`, `sortOrder`, `search`, `active`
+
+- Phase 4:
+  - `GET /api/v1/admin/risk-rules` supports server-side:
+    - `page`, `pageSize`, `sortBy`, `sortOrder`, `search`, `active`
+
+- Phase 5:
+  - `GET /api/v1/admin/plans` supports server-side:
+    - `page`, `pageSize`, `sortBy`, `sortOrder`, `search`, `status`, `type`, `billingCycle`
+
+- Phase 6 backend polish:
+  - Admin user response now includes `preferredLanguage`.
+  - Docs updated with new admin contracts.
+
+## Known scope boundary
+- FE codebase is separate (`gold-trading-bot-ui`), so FE page/hook wiring is not changed in this repository.
+- `/admin/settings` intentionally left as placeholder (out of scope).
+
+## Step 4 polish (completed in FE repo)
+- `/admin`:
+  - dashboard cards now display full typed summary usage including `disabledPorts` and `recentAlertsCount`.
+  - widget-level loading/error messaging added for pending list and activity logs.
+- `/admin/users` and `/admin/users/:id`:
+  - export remains placeholder (explicit notice), no fake backend added.
+  - user detail keeps save/suspend/activate wired; related accounts panel now shows loading/error states.
+- `/admin/accounts` and `/admin/accounts/:id`:
+  - prior contract fixes retained; added clearer loading/error states for account detail logs/process logs sections.
+- `/admin/ports`:
+  - create/edit remains wired; added basic FE validation for required fields and valid port range.
+  - documented KPI limitation (status cards computed from current page items).
+- `/admin/logs`:
+  - current list flow unchanged; no unsafe domain expansion.
+- `/admin/process-logs`:
+  - wired `View` action to local detail dialog using existing row fields.
+  - added result filter on query.
+- `/admin/settings`:
+  - kept placeholder intentionally; controls disabled to avoid implying persistence.

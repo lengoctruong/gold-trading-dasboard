@@ -8,6 +8,8 @@ import com.goldtrading.backend.mt5accounts.domain.entity.MT5Account;
 import com.goldtrading.backend.mt5accounts.repository.MT5AccountRepository;
 import com.goldtrading.backend.notifications.domain.entity.Notification;
 import com.goldtrading.backend.notifications.repository.NotificationRepository;
+import com.goldtrading.backend.plans.domain.entity.Plan;
+import com.goldtrading.backend.plans.repository.PlanRepository;
 import com.goldtrading.backend.ports.domain.entity.PortMaster;
 import com.goldtrading.backend.ports.repository.PortMasterRepository;
 import com.goldtrading.backend.processlogs.repository.ProcessLogRepository;
@@ -82,6 +84,7 @@ public abstract class BaseIntegrationTest {
     @Autowired protected PortMasterRepository portMasterRepository;
     @Autowired protected StrategyRepository strategyRepository;
     @Autowired protected RiskRuleRepository riskRuleRepository;
+    @Autowired protected PlanRepository planRepository;
     @Autowired protected NotificationRepository notificationRepository;
     @Autowired protected AuditLogRepository auditLogRepository;
     @Autowired protected ProcessLogRepository processLogRepository;
@@ -135,6 +138,19 @@ public abstract class BaseIntegrationTest {
         r.setParamsJson("{\"maxRiskPercent\":2}");
         r.setActive(true);
         return riskRuleRepository.save(r);
+    }
+
+    protected Plan createPlan(String code, PlanType type, BillingCycle billingCycle, PlanStatus status) {
+        Plan p = new Plan();
+        p.setId(UUID.randomUUID());
+        p.setCode(code + "-" + UUID.randomUUID().toString().substring(0, 6));
+        p.setType(type);
+        p.setName("Plan " + code);
+        p.setBillingCycle(billingCycle);
+        p.setPrice(BigDecimal.valueOf(99));
+        p.setProfitSharePercent(20);
+        p.setStatus(status);
+        return planRepository.save(p);
     }
 
     protected PortMaster createPort(PortStatus status) {

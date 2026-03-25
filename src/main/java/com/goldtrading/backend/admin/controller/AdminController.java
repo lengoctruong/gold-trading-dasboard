@@ -2,6 +2,9 @@ package com.goldtrading.backend.admin.controller;
 
 import com.goldtrading.backend.admin.dto.request.*;
 import com.goldtrading.backend.admin.dto.response.*;
+import com.goldtrading.backend.common.BillingCycle;
+import com.goldtrading.backend.common.PlanStatus;
+import com.goldtrading.backend.common.PlanType;
 import com.goldtrading.backend.common.UserStatus;
 import com.goldtrading.backend.common.api.ApiResponse;
 import com.goldtrading.backend.common.exception.BusinessException;
@@ -24,9 +27,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -76,14 +82,14 @@ public class AdminController {
     public ApiResponse<?> suspend(@PathVariable UUID id) {
         User u = userRepository.findById(id).orElseThrow(() -> new BusinessException("NOT_FOUND", "User not found"));
         u.setStatus(UserStatus.SUSPENDED);
-        return ApiResponse.ok(toUserResponse(u));
+        return ApiResponse.ok(toUserResponse(userRepository.save(u)));
     }
 
     @PostMapping("/users/{id}/activate")
     public ApiResponse<?> activate(@PathVariable UUID id) {
         User u = userRepository.findById(id).orElseThrow(() -> new BusinessException("NOT_FOUND", "User not found"));
         u.setStatus(UserStatus.ACTIVE);
-        return ApiResponse.ok(toUserResponse(u));
+        return ApiResponse.ok(toUserResponse(userRepository.save(u)));
     }
 
     @GetMapping("/mt5-accounts")
@@ -134,8 +140,32 @@ public class AdminController {
     public ApiResponse<?> failed(Principal principal, @PathVariable UUID id) { return ApiResponse.ok(mt5AccountService.adminMarkFailed(id, principal.getName())); }
 
     @GetMapping("/strategies")
-    public ApiResponse<?> strategies(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int pageSize) {
-        return ApiResponse.ok(PagedDataResponse.of(strategyRepository.findAll(PageRequest.of(page, pageSize)).map(this::toStrategyResponse)));
+    public ApiResponse<?> strategies(@RequestParam(defaultValue = "0") int page,
+                                     @RequestParam(defaultValue = "20") int pageSize,
+                                     @RequestParam(defaultValue = "updatedAt") String sortBy,
+                                     @RequestParam(defaultValue = "desc") String sortOrder,
+                                     @RequestParam(required = false) String search,
+                                     @RequestParam(required = false) Boolean active) {
+        var pageable = PageRequest.of(page, pageSize, resolveSort(sortBy, sortOrder,
+                List.of("updatedAt", "createdAt", "code", "nameVi", "nameEn", "monthlyPrice", "riskLevel", "active"),
+                "updatedAt"));
+        Specification<Strategy> spec = (root, cq, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (active != null) {
+                predicates.add(cb.equal(root.get("active"), active));
+            }
+            if (!isBlank(search)) {
+                String token = "%" + search.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("code")), token),
+                        cb.like(cb.lower(root.get("nameVi")), token),
+                        cb.like(cb.lower(root.get("nameEn")), token),
+                        cb.like(cb.lower(root.get("description")), token)
+                ));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        return ApiResponse.ok(PagedDataResponse.of(strategyRepository.findAll(spec, pageable).map(this::toStrategyResponse)));
     }
 
     @PostMapping("/strategies")
@@ -154,8 +184,32 @@ public class AdminController {
     }
 
     @GetMapping("/risk-rules")
-    public ApiResponse<?> rules(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int pageSize) {
-        return ApiResponse.ok(PagedDataResponse.of(riskRuleRepository.findAll(PageRequest.of(page, pageSize)).map(this::toRiskRuleResponse)));
+    public ApiResponse<?> rules(@RequestParam(defaultValue = "0") int page,
+                                @RequestParam(defaultValue = "20") int pageSize,
+                                @RequestParam(defaultValue = "updatedAt") String sortBy,
+                                @RequestParam(defaultValue = "desc") String sortOrder,
+                                @RequestParam(required = false) String search,
+                                @RequestParam(required = false) Boolean active) {
+        var pageable = PageRequest.of(page, pageSize, resolveSort(sortBy, sortOrder,
+                List.of("updatedAt", "createdAt", "code", "name", "active"),
+                "updatedAt"));
+        Specification<RiskRule> spec = (root, cq, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (active != null) {
+                predicates.add(cb.equal(root.get("active"), active));
+            }
+            if (!isBlank(search)) {
+                String token = "%" + search.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("code")), token),
+                        cb.like(cb.lower(root.get("name")), token),
+                        cb.like(cb.lower(root.get("description")), token),
+                        cb.like(cb.lower(root.get("paramsJson")), token)
+                ));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        return ApiResponse.ok(PagedDataResponse.of(riskRuleRepository.findAll(spec, pageable).map(this::toRiskRuleResponse)));
     }
 
     @PostMapping("/risk-rules")
@@ -174,8 +228,44 @@ public class AdminController {
     }
 
     @GetMapping("/plans")
-    public ApiResponse<?> plans(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int pageSize) {
-        return ApiResponse.ok(PagedDataResponse.of(planRepository.findAll(PageRequest.of(page, pageSize)).map(this::toPlanResponse)));
+    public ApiResponse<?> plans(@RequestParam(defaultValue = "0") int page,
+                                @RequestParam(defaultValue = "20") int pageSize,
+                                @RequestParam(defaultValue = "updatedAt") String sortBy,
+                                @RequestParam(defaultValue = "desc") String sortOrder,
+                                @RequestParam(required = false) String search,
+                                @RequestParam(required = false) String status,
+                                @RequestParam(required = false) String type,
+                                @RequestParam(required = false) String billingCycle) {
+        var pageable = PageRequest.of(page, pageSize, resolveSort(sortBy, sortOrder,
+                List.of("updatedAt", "createdAt", "code", "name", "price", "profitSharePercent", "status", "type", "billingCycle"),
+                "updatedAt"));
+        final PlanStatus statusFilter = parseEnum(status, PlanStatus.class);
+        final PlanType typeFilter = parseEnum(type, PlanType.class);
+        final BillingCycle billingCycleFilter = parseEnum(billingCycle, BillingCycle.class);
+        if ((!isBlank(status) && statusFilter == null) || (!isBlank(type) && typeFilter == null) || (!isBlank(billingCycle) && billingCycleFilter == null)) {
+            return ApiResponse.ok(new PagedDataResponse<>(List.of(), page, pageSize, 0, 0));
+        }
+        Specification<Plan> spec = (root, cq, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (statusFilter != null) {
+                predicates.add(cb.equal(root.get("status"), statusFilter));
+            }
+            if (typeFilter != null) {
+                predicates.add(cb.equal(root.get("type"), typeFilter));
+            }
+            if (billingCycleFilter != null) {
+                predicates.add(cb.equal(root.get("billingCycle"), billingCycleFilter));
+            }
+            if (!isBlank(search)) {
+                String token = "%" + search.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("code")), token),
+                        cb.like(cb.lower(root.get("name")), token)
+                ));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        return ApiResponse.ok(PagedDataResponse.of(planRepository.findAll(spec, pageable).map(this::toPlanResponse)));
     }
 
     @PostMapping("/plans")
@@ -216,22 +306,72 @@ public class AdminController {
     @GetMapping("/logs")
     public ApiResponse<?> logs(@RequestParam(defaultValue = "0") int page,
                                @RequestParam(defaultValue = "20") int pageSize,
-                               @RequestParam(required = false) String search) {
+                               @RequestParam(required = false) String search,
+                               @RequestParam(required = false) String entityType,
+                               @RequestParam(required = false) String entityId,
+                               @RequestParam(required = false) String actorType,
+                               @RequestParam(required = false) String result) {
         var pageable = PageRequest.of(page, pageSize, Sort.by("createdAt").descending());
-        var data = (search == null || search.isBlank())
-                ? auditLogRepository.findAll(pageable)
-                : auditLogRepository.findByActionContainingIgnoreCaseOrActorNameContainingIgnoreCase(search, search, pageable);
+        Specification<com.goldtrading.backend.auditlogs.domain.entity.AuditLog> spec = (root, cq, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (!isBlank(search)) {
+                String token = "%" + search.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("action")), token),
+                        cb.like(cb.lower(root.get("actorName")), token)
+                ));
+            }
+            if (!isBlank(entityType)) {
+                predicates.add(cb.equal(cb.lower(root.get("entityType")), entityType.trim().toLowerCase()));
+            }
+            if (!isBlank(entityId)) {
+                predicates.add(cb.equal(root.get("entityId"), entityId.trim()));
+            }
+            if (!isBlank(actorType)) {
+                predicates.add(cb.equal(cb.lower(root.get("actorType")), actorType.trim().toLowerCase()));
+            }
+            if (!isBlank(result)) {
+                predicates.add(cb.equal(cb.lower(root.get("result")), result.trim().toLowerCase()));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        var data = auditLogRepository.findAll(spec, pageable);
         return ApiResponse.ok(PagedDataResponse.of(data));
     }
 
     @GetMapping("/process-logs")
     public ApiResponse<?> processLogs(@RequestParam(defaultValue = "0") int page,
                                       @RequestParam(defaultValue = "20") int pageSize,
-                                      @RequestParam(required = false) String search) {
+                                      @RequestParam(required = false) String search,
+                                      @RequestParam(required = false) UUID mt5AccountId,
+                                      @RequestParam(required = false) UUID portId,
+                                      @RequestParam(required = false) String actionType,
+                                      @RequestParam(required = false) String result) {
         var pageable = PageRequest.of(page, pageSize, Sort.by("createdAt").descending());
-        var data = (search == null || search.isBlank())
-                ? processLogRepository.findAll(pageable)
-                : processLogRepository.findByActionTypeContainingIgnoreCaseOrMessageContainingIgnoreCase(search, search, pageable);
+        Specification<com.goldtrading.backend.processlogs.domain.entity.ProcessLog> spec = (root, cq, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (!isBlank(search)) {
+                String token = "%" + search.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("actionType")), token),
+                        cb.like(cb.lower(root.get("message")), token)
+                ));
+            }
+            if (mt5AccountId != null) {
+                predicates.add(cb.equal(root.get("mt5AccountId"), mt5AccountId));
+            }
+            if (portId != null) {
+                predicates.add(cb.equal(root.get("portId"), portId));
+            }
+            if (!isBlank(actionType)) {
+                predicates.add(cb.equal(cb.lower(root.get("actionType")), actionType.trim().toLowerCase()));
+            }
+            if (!isBlank(result)) {
+                predicates.add(cb.equal(cb.lower(root.get("result")), result.trim().toLowerCase()));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        var data = processLogRepository.findAll(spec, pageable);
         return ApiResponse.ok(PagedDataResponse.of(data));
     }
 
@@ -241,7 +381,7 @@ public class AdminController {
     }
 
     private AdminUserResponse toUserResponse(User user) {
-        return new AdminUserResponse(user.getId(), user.getFullName(), user.getEmail(), user.getPhone(), user.getAddress(), user.getRole(), user.getStatus(), user.getCreatedAt());
+        return new AdminUserResponse(user.getId(), user.getFullName(), user.getEmail(), user.getPhone(), user.getAddress(), user.getPreferredLanguage(), user.getRole(), user.getStatus(), user.getCreatedAt());
     }
 
     private StrategyResponse toStrategyResponse(Strategy s) {
@@ -297,5 +437,25 @@ public class AdminController {
         target.setBrokerBinding(req.brokerBinding());
         target.setStatus(req.status());
         target.setNote(req.note());
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private <E extends Enum<E>> E parseEnum(String value, Class<E> enumClass) {
+        if (isBlank(value)) {
+            return null;
+        }
+        try {
+            return Enum.valueOf(enumClass, value.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private Sort resolveSort(String sortBy, String sortOrder, List<String> allowedFields, String defaultField) {
+        String field = allowedFields.contains(sortBy) ? sortBy : defaultField;
+        return "asc".equalsIgnoreCase(sortOrder) ? Sort.by(field).ascending() : Sort.by(field).descending();
     }
 }
