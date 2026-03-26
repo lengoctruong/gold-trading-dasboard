@@ -1,0 +1,24 @@
+{
+  "name": "gold-trading-dasboard",
+  "version": "1.0.0",
+  "description": "Spring Boot backend for Trading Bot Management Platform.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bdang3/gold-trading-dasboard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/bdang3/gold-trading-dasboard/issues"
+  },
+  "homepage": "https://github.com/bdang3/gold-trading-dasboard#readme",
+  "dependencies": {
+    "pg": "^8.20.0"
+  }
+}

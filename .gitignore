@@ -6,7 +6,7 @@ target/
 *.iws
 *.ipr
 out/
-
+node_modules
 .vscode/
 
 logs/
@@ -16,3 +16,6 @@ logs/
 Thumbs.db
 
 *.class
+
+# Environment variables (contains secrets)
+.env

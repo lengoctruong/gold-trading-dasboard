@@ -1,8 +1,9 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
-CREATE SCHEMA IF NOT EXISTS dasboard;
+-- Schema will be created/renamed by V2__rename_dasboard_to_dashboard.sql
+-- For backward compatibility with existing installations
 
-CREATE TABLE IF NOT EXISTS dasboard.users (
+CREATE TABLE IF NOT EXISTS dashboard.users (
   id UUID PRIMARY KEY,
   full_name VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
@@ -20,25 +21,25 @@ CREATE TABLE IF NOT EXISTS dasboard.users (
   deleted_at TIMESTAMPTZ
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.refresh_tokens (
+CREATE TABLE IF NOT EXISTS dashboard.refresh_tokens (
   id UUID PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES dasboard.users(id),
+  user_id UUID NOT NULL REFERENCES dashboard.users(id),
   token_hash VARCHAR(255) NOT NULL UNIQUE,
   expires_at TIMESTAMPTZ NOT NULL,
   revoked_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.password_reset_tokens (
+CREATE TABLE IF NOT EXISTS dashboard.password_reset_tokens (
   id UUID PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES dasboard.users(id),
+  user_id UUID NOT NULL REFERENCES dashboard.users(id),
   token_hash VARCHAR(255) NOT NULL UNIQUE,
   expires_at TIMESTAMPTZ NOT NULL,
   used_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.plans (
+CREATE TABLE IF NOT EXISTS dashboard.plans (
   id UUID PRIMARY KEY,
   code VARCHAR(50) NOT NULL UNIQUE,
   type VARCHAR(30) NOT NULL,
@@ -51,17 +52,17 @@ CREATE TABLE IF NOT EXISTS dasboard.plans (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.user_plan_history (
+CREATE TABLE IF NOT EXISTS dashboard.user_plan_history (
   id UUID PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES dasboard.users(id),
-  plan_id UUID NOT NULL REFERENCES dasboard.plans(id),
+  user_id UUID NOT NULL REFERENCES dashboard.users(id),
+  plan_id UUID NOT NULL REFERENCES dashboard.plans(id),
   started_at TIMESTAMPTZ NOT NULL,
   ended_at TIMESTAMPTZ,
   is_current BOOLEAN NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.strategies (
+CREATE TABLE IF NOT EXISTS dashboard.strategies (
   id UUID PRIMARY KEY,
   code VARCHAR(50) NOT NULL UNIQUE,
   name_vi VARCHAR(255) NOT NULL,
@@ -75,7 +76,7 @@ CREATE TABLE IF NOT EXISTS dasboard.strategies (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.risk_rules (
+CREATE TABLE IF NOT EXISTS dashboard.risk_rules (
   id UUID PRIMARY KEY,
   code VARCHAR(50) NOT NULL UNIQUE,
   name VARCHAR(255) NOT NULL,
@@ -86,7 +87,7 @@ CREATE TABLE IF NOT EXISTS dasboard.risk_rules (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.port_master (
+CREATE TABLE IF NOT EXISTS dashboard.port_master (
   id UUID PRIMARY KEY,
   code VARCHAR(50) NOT NULL UNIQUE,
   ip_address VARCHAR(100) NOT NULL,
@@ -100,9 +101,9 @@ CREATE TABLE IF NOT EXISTS dasboard.port_master (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.mt5_accounts (
+CREATE TABLE IF NOT EXISTS dashboard.mt5_accounts (
   id UUID PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES dasboard.users(id),
+  user_id UUID NOT NULL REFERENCES dashboard.users(id),
   account_number VARCHAR(50) NOT NULL,
   encrypted_password TEXT NOT NULL,
   broker VARCHAR(100) NOT NULL,
@@ -110,12 +111,12 @@ CREATE TABLE IF NOT EXISTS dasboard.mt5_accounts (
   account_type VARCHAR(30) NOT NULL,
   verification_status VARCHAR(30) NOT NULL,
   verification_message TEXT,
-  strategy_id UUID REFERENCES dasboard.strategies(id),
+  strategy_id UUID REFERENCES dashboard.strategies(id),
   timeframe VARCHAR(20),
-  risk_rule_id UUID REFERENCES dasboard.risk_rules(id),
+  risk_rule_id UUID REFERENCES dashboard.risk_rules(id),
   status VARCHAR(30) NOT NULL,
   admin_action VARCHAR(40) NOT NULL,
-  assigned_port_id UUID REFERENCES dasboard.port_master(id),
+  assigned_port_id UUID REFERENCES dashboard.port_master(id),
   submitted_at TIMESTAMPTZ,
   started_at TIMESTAMPTZ,
   stopped_at TIMESTAMPTZ,
@@ -132,17 +133,17 @@ BEGIN
     SELECT 1
     FROM pg_constraint
     WHERE conname = 'fk_port_current_account'
-      AND connamespace = 'dasboard'::regnamespace
+      AND connamespace = 'dashboard'::regnamespace
   ) THEN
-    ALTER TABLE dasboard.port_master
+    ALTER TABLE dashboard.port_master
       ADD CONSTRAINT fk_port_current_account
-      FOREIGN KEY (current_mt5_account_id) REFERENCES dasboard.mt5_accounts(id);
+      FOREIGN KEY (current_mt5_account_id) REFERENCES dashboard.mt5_accounts(id);
   END IF;
 END $$;
 
-CREATE TABLE IF NOT EXISTS dasboard.notifications (
+CREATE TABLE IF NOT EXISTS dashboard.notifications (
   id UUID PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES dasboard.users(id),
+  user_id UUID NOT NULL REFERENCES dashboard.users(id),
   type VARCHAR(30) NOT NULL,
   title VARCHAR(255) NOT NULL,
   message TEXT NOT NULL,
@@ -150,7 +151,7 @@ CREATE TABLE IF NOT EXISTS dasboard.notifications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.audit_logs (
+CREATE TABLE IF NOT EXISTS dashboard.audit_logs (
   id UUID PRIMARY KEY,
   actor_type VARCHAR(50) NOT NULL,
   actor_id VARCHAR(100),
@@ -164,10 +165,10 @@ CREATE TABLE IF NOT EXISTS dasboard.audit_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.process_logs (
+CREATE TABLE IF NOT EXISTS dashboard.process_logs (
   id UUID PRIMARY KEY,
-  mt5_account_id UUID NOT NULL REFERENCES dasboard.mt5_accounts(id),
-  port_id UUID REFERENCES dasboard.port_master(id),
+  mt5_account_id UUID NOT NULL REFERENCES dashboard.mt5_accounts(id),
+  port_id UUID REFERENCES dashboard.port_master(id),
   action_type VARCHAR(50) NOT NULL,
   result VARCHAR(30) NOT NULL,
   exit_code INT,
@@ -176,14 +177,14 @@ CREATE TABLE IF NOT EXISTS dasboard.process_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.bot_operations (
+CREATE TABLE IF NOT EXISTS dashboard.bot_operations (
   id UUID PRIMARY KEY,
-  mt5_account_id UUID NOT NULL REFERENCES dasboard.mt5_accounts(id),
+  mt5_account_id UUID NOT NULL REFERENCES dashboard.mt5_accounts(id),
   type VARCHAR(50) NOT NULL,
   status VARCHAR(30) NOT NULL,
   requested_by_type VARCHAR(50) NOT NULL,
   requested_by_id VARCHAR(100) NOT NULL,
-  port_id UUID REFERENCES dasboard.port_master(id),
+  port_id UUID REFERENCES dashboard.port_master(id),
   payload_json TEXT,
   result_json TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -191,7 +192,7 @@ CREATE TABLE IF NOT EXISTS dasboard.bot_operations (
   completed_at TIMESTAMPTZ
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.brokers (
+CREATE TABLE IF NOT EXISTS dashboard.brokers (
   id UUID PRIMARY KEY,
   code VARCHAR(50) NOT NULL UNIQUE,
   name VARCHAR(255) NOT NULL,
@@ -200,9 +201,9 @@ CREATE TABLE IF NOT EXISTS dasboard.brokers (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS dasboard.broker_servers (
+CREATE TABLE IF NOT EXISTS dashboard.broker_servers (
   id UUID PRIMARY KEY,
-  broker_id UUID NOT NULL REFERENCES dasboard.brokers(id),
+  broker_id UUID NOT NULL REFERENCES dashboard.brokers(id),
   code VARCHAR(100) NOT NULL,
   name VARCHAR(255) NOT NULL,
   active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -211,11 +212,11 @@ CREATE TABLE IF NOT EXISTS dasboard.broker_servers (
   CONSTRAINT uq_broker_servers_broker_code UNIQUE (broker_id, code)
 );
 
-CREATE INDEX IF NOT EXISTS idx_mt5_user ON dasboard.mt5_accounts(user_id);
-CREATE INDEX IF NOT EXISTS idx_mt5_status ON dasboard.mt5_accounts(status);
-CREATE INDEX IF NOT EXISTS idx_mt5_verification ON dasboard.mt5_accounts(verification_status);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON dasboard.notifications(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_reset_token_user ON dasboard.password_reset_tokens(user_id);
-CREATE INDEX IF NOT EXISTS idx_reset_token_expires ON dasboard.password_reset_tokens(expires_at);
-CREATE INDEX IF NOT EXISTS idx_broker_servers_broker_id ON dasboard.broker_servers(broker_id);
-CREATE INDEX IF NOT EXISTS idx_broker_servers_active ON dasboard.broker_servers(active);
+CREATE INDEX IF NOT EXISTS idx_mt5_user ON dashboard.mt5_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_mt5_status ON dashboard.mt5_accounts(status);
+CREATE INDEX IF NOT EXISTS idx_mt5_verification ON dashboard.mt5_accounts(verification_status);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON dashboard.notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reset_token_user ON dashboard.password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_reset_token_expires ON dashboard.password_reset_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_broker_servers_broker_id ON dashboard.broker_servers(broker_id);
+CREATE INDEX IF NOT EXISTS idx_broker_servers_active ON dashboard.broker_servers(active);

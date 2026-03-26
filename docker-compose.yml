@@ -1,11 +1,27 @@
+# ============================================
+# LEGACY/DEV-ONLY COMPOSE FILE
+# ============================================
+# ⚠️  This file is DEPRECATED for production use.
+# 
+# Use the main stack compose instead:
+#   C:\MLI\NewRepo\gold-trading-stack\docker-compose.yml
+#
+# This file is kept for:
+# - Local standalone testing
+# - Development without the full stack
+# - Reference/documentation
+#
+# DO NOT use this for deployment!
+# ============================================
+
 services:
   postgres:
     image: postgres:16
-    container_name: gtb-postgres
+    container_name: gtb-dashboard-postgres-dev-only
     environment:
-      POSTGRES_DB: goldtrading
+      POSTGRES_DB: gold_trading_bot
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: 123456
     ports:
       - "5432:5432"
     volumes:
@@ -13,14 +29,18 @@ services:
 
   app:
     build: .
-    container_name: gtb-backend
+    container_name: gtb-dashboard-backend-dev-only
     env_file:
       - .env
     depends_on:
       - postgres
     ports:
-      - "8080:8080"
+      - "8088:8088"
+    environment:
+      # Override for dev-only mode
+      DB_URL: jdbc:postgresql://postgres:5432/gold_trading_bot?currentSchema=dashboard
+      DB_USERNAME: postgres
+      DB_PASSWORD: 123456
 
 volumes:
   postgres_data:
-
