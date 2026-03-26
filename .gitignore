@@ -18,4 +18,3 @@ Thumbs.db
 *.class
 
 # Environment variables (contains secrets)
-.env
